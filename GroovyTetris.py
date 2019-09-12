@@ -10,7 +10,7 @@ FPS = 25
 WINDOWWIDTH = 640
 WINDOWHEIGHT = 480
 BOXSIZE = 20
-BOARDWIDTH = 10
+BOARDWIDTH = 15
 BOARDHEIGHT = 20
 BLANK = '.'
 SONGBEAT = 60/125
@@ -20,6 +20,7 @@ MOVEDOWNFREQ = 0.1
 
 XMARGIN = int((WINDOWWIDTH - BOARDWIDTH * BOXSIZE) / 2)
 TOPMARGIN = WINDOWHEIGHT - (BOARDHEIGHT * BOXSIZE) - 5
+nope = None
 
 #               R    G    B
 TURQUOISE =    (0, 240, 246)
@@ -49,7 +50,7 @@ lastBorderColorChangeTime = time.time()
 assert len(COLORS) == len(LIGHTCOLORS) # each color must have light color
 TEMPLATEWIDTH = 5
 TEMPLATEHEIGHT = 5
-
+discoTimeTextColor = {"Disco": {"color": TURQUOISE, "X": 375, "Y": 30}, "Time": {"color": ROYALRED, "X": 320, "Y": 30}}
 S_SHAPE_TEMPLATE = [['.....',
                      '.....',
                      '..OO.',
@@ -163,22 +164,32 @@ discoTimeReady = True
 discoTimeLength = 16.25
 discoTimeStart = None
 discoTimeActive = False
+lastDiscoTimeTextColorChangeTime = time.time()
 
 
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT, BIGFONT
+    global discoTimeActive, discoTimeStart, BGCOLOR, TEXTCOLOR, NEXTCOLOR, nope
     pygame.init()
+    nope = pygame.mixer.Sound('Nope.ogg')
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
-    BIGFONT = pygame.font.Font('freesansbold.ttf', 100)
-    pygame.display.set_caption('Tetromino')
+    BIGFONT = pygame.font.Font('freesansbold.ttf', 30)
+    pygame.display.set_caption('Groovy Tetris')
 
-    showTextScreen('Tetromino')
+    showTextScreen('The Rat Pack Presents: Groovy Tetris')
     while True: # game loop
         pygame.mixer.music.load('PreDiscoTime.ogg')
         pygame.mixer.music.play(-1, 17.0)
         runGame()
+        discoTimeActive = False
+        discoTimeStart = None
+        discoTimeActive = False
+        BGCOLOR = BLACK
+        TEXTCOLOR = WHITE
+        NEXTCOLOR = WHITE
+        pygame.mixer.music.load('PreDiscoTime.ogg')
         pygame.mixer.music.stop()
         showTextScreen('Game Over')
 
@@ -231,16 +242,18 @@ def runGame():
                 elif (event.key == K_DOWN or event.key == K_s):
                     movingDown = False
                 elif(event.key == K_t):
-                    if discoTimeReady:
+                    if score >= 4:
                         discoTimeStart = time.time()
                         discoTimeReady = False
                         discoTimeActive = True
                         BGCOLOR = GRAPE
+                        score -= 4
                         pygame.mixer.music.stop()
                         pygame.mixer.music.load('PostDiscoTime.ogg')
                         pygame.mixer.music.play(0, 0.0)
                     else:
-                        print("Disco Time isn't ready!")
+                        nope.play()
+                        print("Disco Time isn't ready, you need a higher score!")
 
             elif event.type == KEYDOWN:
                 # moving the piece sideways
@@ -314,6 +327,7 @@ def runGame():
         drawBoard(board)
         drawStatus(score, level)
         drawNextPiece(nextPiece)
+        drawDiscoTimeActive()
         if fallingPiece != None:
             drawPiece(fallingPiece)
 
@@ -355,6 +369,7 @@ def showTextScreen(text):
     # This function displays large text in the
     # center of the screen until a key is pressed.
     # Draw the text drop shadow
+    DISPLAYSURF.fill(GRAPE)
     titleSurf, titleRect = makeTextObjs(text, BIGFONT, TEXTSHADOWCOLOR)
     titleRect.center = (int(WINDOWWIDTH / 2), int(WINDOWHEIGHT / 2))
     DISPLAYSURF.blit(titleSurf, titleRect)
@@ -368,9 +383,11 @@ def showTextScreen(text):
     pressKeySurf, pressKeyRect = makeTextObjs('Press a key to play.', BASICFONT, TEXTCOLOR)
     pressKeyRect.center = (int(WINDOWWIDTH / 2), int(WINDOWHEIGHT / 2) + 100)
     DISPLAYSURF.blit(pressKeySurf, pressKeyRect)
+
     while checkForKeyPress() == None:
         pygame.display.update()
         FPSCLOCK.tick()
+    DISPLAYSURF.fill(BGCOLOR)
 
 
 def checkForQuit():
@@ -519,6 +536,23 @@ def drawStatus(score, level):
     levelRect = levelSurf.get_rect()
     levelRect.topleft = (WINDOWWIDTH - 150, 50)
     DISPLAYSURF.blit(levelSurf, levelRect)
+
+def drawDiscoTimeActive():
+    global discoTimeActive
+    global lastDiscoTimeTextColorChangeTime
+    changeColor = False
+    currentTime = time.time()
+    if discoTimeActive and round(currentTime - lastDiscoTimeTextColorChangeTime, 2) >= SONGBEAT:
+        lastDiscoTimeTextColorChangeTime = time.time()
+        changeColor = True
+    if discoTimeActive:
+        for key, value in discoTimeTextColor.items():
+            if changeColor:
+                value["color"] = LIGHTCOLORS[random.randint(0, len(COLORS) - 1)]
+            Surf = BASICFONT.render(key, True, value["color"])
+            Rect = Surf.get_rect()
+            Rect.topleft = (WINDOWWIDTH - value["X"], value["Y"])
+            DISPLAYSURF.blit(Surf, Rect)
 
 
 def drawPiece(piece, pixelx=None, pixely=None):
