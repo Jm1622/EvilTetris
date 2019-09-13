@@ -1,7 +1,6 @@
-# Tetromino (a Tetris clone)
-# By Al Sweigart al@inventwithpython.com
-# http://inventwithpython.com/pygame
-# Released under a "Simplified BSD" license
+# Groovy Tetris (A Tetris Clone with Disco Time)
+# Created by Caelan Livingston, Jeremy Martin, Nathan Moss, and Gabriel Simm, also known as The Rat Pack
+# CSC 417
 
 import random, time, pygame, sys
 from pygame.locals import *
@@ -13,6 +12,7 @@ BOXSIZE = 20
 BOARDWIDTH = 15
 BOARDHEIGHT = 20
 BLANK = '.'
+#the amount of time until the next beat
 SONGBEAT = 60/125
 
 MOVESIDEWAYSFREQ = 0.15
@@ -22,6 +22,7 @@ XMARGIN = int((WINDOWWIDTH - BOARDWIDTH * BOXSIZE) / 2)
 TOPMARGIN = WINDOWHEIGHT - (BOARDHEIGHT * BOXSIZE) - 5
 nope = None
 
+#Set color globals
 #               R    G    B
 TURQUOISE =    (0, 240, 246)
 ROYALRED =     (218, 1, 92)
@@ -43,13 +44,16 @@ NEXTCOLOR = WHITE
 TEXTSHADOWCOLOR = SPACECADET
 LIGHTCOLORS      = (     TURQUOISE,      ROYALRED,      AWESOME,      AURELION, LAWNGREEN, RAZZLEDAZZLEROSE, SPIRODISCOBALL, STRAWBERRYSHERBET, ORANGESHERBET)
 COLORS = (WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE)
+#globals to hold onto the last time a color changed
 lastBoardColorChangeTime = time.time()
 lastTextColorChangeTime = time.time()
 lastNextTextColorChangeTime = time.time()
 lastBorderColorChangeTime = time.time()
+lastDiscoTimeTextColorChangeTime = time.time()
 assert len(COLORS) == len(LIGHTCOLORS) # each color must have light color
 TEMPLATEWIDTH = 5
 TEMPLATEHEIGHT = 5
+#global to display disco time text
 discoTimeTextColor = {"Disco": {"color": TURQUOISE, "X": 375, "Y": 30}, "Time": {"color": ROYALRED, "X": 320, "Y": 30}}
 S_SHAPE_TEMPLATE = [['.....',
                      '.....',
@@ -160,32 +164,32 @@ PIECES = {'S': S_SHAPE_TEMPLATE,
           'I': I_SHAPE_TEMPLATE,
           'O': O_SHAPE_TEMPLATE,
           'T': T_SHAPE_TEMPLATE}
-discoTimeReady = True
+#length of discoTime in seconds, the time it started, and if its ctive
 discoTimeLength = 16.25
 discoTimeStart = None
 discoTimeActive = False
-lastDiscoTimeTextColorChangeTime = time.time()
 
 
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT, BIGFONT
     global discoTimeActive, discoTimeStart, BGCOLOR, TEXTCOLOR, NEXTCOLOR, nope
     pygame.init()
+    #store a sound effect for use later
     nope = pygame.mixer.Sound('Nope.ogg')
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
     BIGFONT = pygame.font.Font('freesansbold.ttf', 30)
     pygame.display.set_caption('Groovy Tetris')
-
     showTextScreen('The Rat Pack Presents: Groovy Tetris')
     while True: # game loop
+        #load music and start it
         pygame.mixer.music.load('PreDiscoTime.ogg')
         pygame.mixer.music.play(-1, 17.0)
         runGame()
+        #reset values to what they were before loop
         discoTimeActive = False
         discoTimeStart = None
-        discoTimeActive = False
         BGCOLOR = BLACK
         TEXTCOLOR = WHITE
         NEXTCOLOR = WHITE
@@ -203,7 +207,6 @@ def runGame():
     movingDown = False # note: there is no movingUp variable
     movingLeft = False
     movingRight = False
-    global discoTimeReady
     global discoTimeLength
     global discoTimeStart
     global discoTimeActive
@@ -242,18 +245,22 @@ def runGame():
                 elif (event.key == K_DOWN or event.key == K_s):
                     movingDown = False
                 elif(event.key == K_t):
+                    #if the user presses T check their score
+                    #if they have greater than 4 we can start disco time, subtract 4 from their score
                     if score >= 4:
+                        #note starting time
                         discoTimeStart = time.time()
-                        discoTimeReady = False
                         discoTimeActive = True
+                        #change the BGCOLOR
                         BGCOLOR = GRAPE
                         score -= 4
+                        #start new track
                         pygame.mixer.music.stop()
                         pygame.mixer.music.load('PostDiscoTime.ogg')
                         pygame.mixer.music.play(0, 0.0)
                     else:
+                        #play the not ready sound effect
                         nope.play()
-                        print("Disco Time isn't ready, you need a higher score!")
 
             elif event.type == KEYDOWN:
                 # moving the piece sideways
@@ -333,8 +340,9 @@ def runGame():
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
+        #check if discoTime needs to end
         if discoTimeActive and time.time()-discoTimeStart >= discoTimeLength:
-            print("Disco time ended")
+            #set it to end and change values back to what they were before hand
             discoTimeActive = False
             BGCOLOR = BLACK
             pygame.mixer.music.stop()
@@ -368,8 +376,9 @@ def checkForKeyPress():
 def showTextScreen(text):
     # This function displays large text in the
     # center of the screen until a key is pressed.
-    # Draw the text drop shadow
+    #change the background to grape
     DISPLAYSURF.fill(GRAPE)
+    # Draw the text drop shadow
     titleSurf, titleRect = makeTextObjs(text, BIGFONT, TEXTSHADOWCOLOR)
     titleRect.center = (int(WINDOWWIDTH / 2), int(WINDOWHEIGHT / 2))
     DISPLAYSURF.blit(titleSurf, titleRect)
@@ -387,7 +396,6 @@ def showTextScreen(text):
     while checkForKeyPress() == None:
         pygame.display.update()
         FPSCLOCK.tick()
-    DISPLAYSURF.fill(BGCOLOR)
 
 
 def checkForQuit():
@@ -510,6 +518,7 @@ def drawBoard(board):
     currentTime = time.time()
     for x in range(BOARDWIDTH):
         for y in range(BOARDHEIGHT):
+            #if we're in disco time and it's been long enough since the lastColorChange time change the color of the pixel
             if discoTimeActive and board[x][y] != '.' and round(currentTime - lastBoardColorChangeTime, 2) >= SONGBEAT:
                 board[x][y] = random.randint(0, len(COLORS)-1)
             drawBox(x, y, board[x][y])
@@ -520,10 +529,12 @@ def drawStatus(score, level):
     global lastTextColorChangeTime
     global TEXTCOLOR
     currentTime = time.time()
+    #if disco time is active and we have elapsed the beat time change the color
     if discoTimeActive and round(currentTime-lastTextColorChangeTime, 2) >= SONGBEAT:
         TEXTCOLOR = LIGHTCOLORS[random.randint(0, len(COLORS)-1)]
         lastTextColorChangeTime = time.time()
     elif not discoTimeActive:
+        #if not disco time make the text white
         TEXTCOLOR = WHITE
     # draw the score text
     scoreSurf = BASICFONT.render('Score: %s' % score, True, TEXTCOLOR)
@@ -542,13 +553,16 @@ def drawDiscoTimeActive():
     global lastDiscoTimeTextColorChangeTime
     changeColor = False
     currentTime = time.time()
+    #change the color if we have passed a beat time
     if discoTimeActive and round(currentTime - lastDiscoTimeTextColorChangeTime, 2) >= SONGBEAT:
         lastDiscoTimeTextColorChangeTime = time.time()
         changeColor = True
     if discoTimeActive:
         for key, value in discoTimeTextColor.items():
+            #set the new color item
             if changeColor:
                 value["color"] = LIGHTCOLORS[random.randint(0, len(COLORS) - 1)]
+            #write the word out with the X, Y, and color from the dictionary
             Surf = BASICFONT.render(key, True, value["color"])
             Rect = Surf.get_rect()
             Rect.topleft = (WINDOWWIDTH - value["X"], value["Y"])
@@ -570,10 +584,12 @@ def drawNextPiece(piece):
     global lastNextTextColorChangeTime
     global NEXTCOLOR
     currentTime = time.time()
+    # change the color if we have passed a beat time
     if discoTimeActive and round(currentTime - lastNextTextColorChangeTime, 2) >= SONGBEAT:
         NEXTCOLOR = LIGHTCOLORS[random.randint(0, len(COLORS) - 1)]
         lastNextTextColorChangeTime = time.time()
     elif not discoTimeActive:
+        #if not disco time make text white
         NEXTCOLOR = WHITE
     # draw the "next" text
     nextSurf = BASICFONT.render('Next:', True, NEXTCOLOR)
